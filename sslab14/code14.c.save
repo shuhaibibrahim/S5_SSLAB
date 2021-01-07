@@ -1,0 +1,279 @@
+#include<stdio.h>
+#include<conio.h>
+#include<string.h>
+#include<stdlib.h>
+
+struct namTab{
+    char name[20];
+    int startLine;
+    int endLine;
+}macroName[20];
+
+int macroCount=0;
+int defLine=0; //line number in deftab.txt
+
+void pass1()
+{
+    FILE * f1, * f2, * f3;
+    char mne[20], opnd[20], la[20];
+    f1 = fopen("input.txt", "r");
+    f2 = fopen("ntab2.txt", "w+");
+    f3 = fopen("dtab2.txt", "w+");
+
+    char parameters[10][50];
+    int paramCount=0;
+
+    fscanf(f1, "%s%s%s", la, mne, opnd);
+    while(strcmp(mne,"END")!=0)
+    {
+        paramCount=0;
+        if (strcmp(mne, "MACRO") == 0)
+        {
+            while (strcmp(mne, "MEND") != 0) 
+            {
+                if (strcmp(mne, "MACRO") == 0) 
+                {
+                    strcpy(macroName[macroCount].name,la);
+                    macroName[macroCount].startLine=defLine;
+
+                    fprintf(f2, "%s\n", la);
+                    fprintf(f3, "%s\t%s\n", la, opnd);
+
+                    int p=0;
+                    for(int i=0;i<strlen(opnd);i++)
+                    {
+                        if(opnd[i]!=',')
+                        {
+                            parameters[paramCount][p]=opnd[i];
+                            p++;
+                        }
+                        else
+                        {
+                            parameters[paramCount][p]='\0';
+                            p=0;
+                            paramCount++;
+                        }
+                    }
+                    parameters[paramCount][p]='\0'; //for the last parameter
+
+                    defLine++;
+                } 
+                else
+                {
+                    // fprintf(f3, "%s\t%s\n", mne, opnd);
+                    fprintf(f3, "%s\t", mne);
+
+                    int argPosition=0;
+                    char arg[20];
+                    int argIndex=0;
+                    int k=0;
+                    while(k<strlen(opnd))
+                    {
+                        if(opnd[k]=='&')
+                        {
+                            fprintf(f3,"&");
+                            k++;
+
+                            arg[argIndex]='&';
+                            argIndex++;
+                            while(opnd[k]!=',' && k<strlen(opnd))
+                            {
+                                arg[argIndex]=opnd[k];
+                                argIndex++;
+                                k++;
+                            }
+                            arg[argIndex]='\0';
+
+                            for(int i=0; i<=paramCount;i++)
+                            {
+                                if(strcmp(parameters[i],arg)==0)
+                                {
+                                    fprintf(f3,"%d",i);
+                                    break;
+                                }
+                            }
+
+                        }
+                        else
+                        {
+                            fprintf(f3,"%c",opnd[k]);
+                            k++;
+                        }
+                    }
+                    fprintf(f3,"\n");
+                    defLine++;
+
+                }
+                fscanf(f1, "%s%s%s", la, mne, opnd);
+            }
+
+            macroName[macroCount].endLine=defLine;
+
+            fprintf(f3, "%s\n", mne);
+            defLine++;
+
+            macroCount++;
+        }
+        fscanf(f1, "%s%s%s", la, mne, opnd);
+
+    }
+    fclose(f1);
+    fclose(f2);
+    fclose(f3);
+
+}
+
+struct argTab
+{
+    char name[20];
+} args[10];
+
+void pass2()
+{
+    FILE * f1, * f2, * f3, *f4;
+    char mne[20], opnd[20], la[20];
+
+    int macroFound=0, outMacroDef=0;
+
+    f1 = fopen("input.txt", "r");
+    f2 = fopen("ntab2.txt", "r");
+    f3 = fopen("dtab2.txt", "r");
+    fscanf(f1, "%s%s%s", la, mne, opnd);
+    while(strcmp(mne,"END")!=0)
+    {
+        if (strcmp(mne, "MACRO") == 0)
+        {
+            while (strcmp(mne, "MEND") != 0) 
+            {
+                fscanf(f1, "%s%s%s", la, mne, opnd);
+            }
+        }
+        fscanf(f1, "%s%s%s", la, mne, opnd);
+
+        if(strcmp(mne,"START")==0)
+            outMacroDef=1;
+        macroFound=0;
+        for(int i=0;i<macroCount;i++)
+        {
+            if(strcmp(macroName[i].name,mne)==0)
+            {
+                printf(".%s\t%s\t%s\n",la,mne,opnd); //comment line
+                //storing the arguments in argtab
+                int q=0;
+                int argCount=0;
+                int argIndex=0;
+                while(q<strlen(opnd))
+                {
+                    if(opnd[q]!=',')
+                    {
+                        args[argCount].name[argIndex]=opnd[q];
+                        argIndex++;
+                        q++;
+                    }
+                    else
+                    {
+                        args[argCount].name[argIndex]='\0';
+                        argCount++;
+                        argIndex=0;
+                        q++;
+                    }
+                }
+                args[argCount].name[argIndex]='\0';
+
+                int start=macroName[i].startLine;
+                int end=macroName[i].endLine;
+                int line=0;
+                char currLine[100];
+                char dmne[20], dopnd[20];
+
+                while(line!=start)
+                {
+                    fscanf(f3," %[^\n]", currLine);
+                    line++;
+                }
+
+                //macro expansion
+                printf("%s\t",la);
+
+                fscanf(f3," %[^\n]", currLine);
+                line++;
+                while(line!=end)
+                {
+                    if(line>start+1)
+                        printf("-\t");
+                    fscanf(f3,"%s%s",dmne,dopnd);
+
+                    printf("%s\t",dmne);
+
+                    char currParam[20];
+                    int currParamIndex=0;
+                    int icurrParam;
+                    int j=0;
+                    while(j<strlen(dopnd))
+                    {
+                        currParamIndex=0;
+                        if(dopnd[j]=='&')
+                        {
+                            j++;
+                            while(dopnd[j]!=',' && j<strlen(dopnd))
+                            {
+                                currParam[currParamIndex]=dopnd[j];
+                                j++;
+                                currParamIndex++;
+                            }
+                            currParam[currParamIndex]='\0';
+                            icurrParam=atoi(currParam);
+                            printf("%s",args[icurrParam].name);
+                        }
+                        else
+                        {
+                            printf("%c",dopnd[j]);
+                            j++;
+                        }
+                    }
+                    printf("\n");
+                    line++;
+                }
+                macroFound=1;        
+                break;       
+            }
+        }
+        if(!macroFound && outMacroDef)
+        {
+            printf("%s\t%s\t%s\n",la,mne,opnd);
+        }
+
+    }
+    fclose(f1);
+    fclose(f2);
+    fclose(f3);
+}
+
+void main() 
+{
+    pass1();
+
+    char str[100];
+
+    FILE *f1, *f2;
+    f1 = fopen("ntab2.txt", "r");
+    f2 = fopen("dtab2.txt", "r");
+
+    
+    printf("NAMTAB : \n---------------------\n");
+    while(fgets(str,100,f1))
+    {
+        printf("%s",str);
+    }
+    printf("---------------------\n\n");
+    
+    printf("DEFTAB : \n---------------------\n");
+    while(fgets(str,100,f2))
+    {
+        printf("%s",str);
+    }
+    printf("---------------------\n\n");
+    
+    printf("After macro expansion\n---------------------\n");
+    pass2();
+}

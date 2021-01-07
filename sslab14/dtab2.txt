@@ -1,0 +1,8 @@
+EX1	&A,&B
+MUL	&0
+STA	&1
+MEND
+EX2	&A,&B
+SUB	&0
+ADD	&1
+MEND
